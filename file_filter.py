@@ -34,12 +34,13 @@ def get_split_str(args):
 
 def filter_file(args, inFile, outFile):
     if args.filter is None:
-        filter_row = lambda l, r: True
+        filter_row = None
     else:
         filter_row = lambda l, r: eval(args.filter)
 
     split_str = get_split_str(args)
 
+    # parse header
     header_indexes = {}
     if not args.no_header:
         header = inFile.readline()
@@ -50,18 +51,37 @@ def filter_file(args, inFile, outFile):
             header_indexes[col] = idx
             idx += 1
 
+    # skip lines
+    if args.offset is not None:
+        count = 1
+        while count < args.offset:
+            inFile.readline()
+            count += 1
+
+    # write lines
+    count = 0
     for line in inFile:
-        split = line.rstrip('\r\n').split(split_str)
-        row = Row(header_indexes, split)
-        if filter_row(line, row):
+        if args.limit is not None and count >= args.limit:
+            break
+
+        write_row = True
+        if filter_row is not None:
+            split = line.rstrip('\r\n').split(split_str)
+            row = Row(header_indexes, split)
+            write_row = filter_row(line, row)
+
+        if write_row:
             outFile.write(line)
+            count += 1
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', nargs='?', help='Input file')
     parser.add_argument('-f', '--filter', help='Row filter expression')
+    parser.add_argument('-l', '--limit', type=int, help='Max number of rows to output (excluding header)')
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
-    parser.add_argument('-o', '--output', help='Output file')
+    parser.add_argument('-o', '--offset', type=int, help='Starting row to output (excluding header)')
+    parser.add_argument('--out', help='Output file')
     parser.add_argument('--split', help='String to split columns')
 
     args = parser.parse_args()
@@ -75,10 +95,10 @@ def main():
             inFile = sys.stdin
         else:
             inFile = open(args.filename, 'r')
-        if args.output is None:
+        if args.out is None:
             outFile = sys.stdout
         else:
-            outFile = open(args.output, 'w')
+            outFile = open(args.out, 'w')
 
         filter_file(args, inFile, outFile)
 
