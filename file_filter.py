@@ -26,14 +26,15 @@ def filter_file(args, inFile, outFile):
 
     split_str = ','
 
-    header = inFile.readline()
-    outFile.write(header)
-    header_split = header.rstrip('\r\n').split(split_str)
     header_indexes = {}
-    idx = 0
-    for col in header_split:
-        header_indexes[col] = idx
-        idx += 1
+    if not args.no_header:
+        header = inFile.readline()
+        outFile.write(header)
+        header_split = header.rstrip('\r\n').split(split_str)
+        idx = 0
+        for col in header_split:
+            header_indexes[col] = idx
+            idx += 1
 
     for line in inFile:
         split = line.rstrip('\r\n').split(split_str)
@@ -45,6 +46,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', nargs='?')
     parser.add_argument('-f', '--filter', help='Row filter expression')
+    parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
     parser.add_argument('-o', '--output', help='Output file')
 
     args = parser.parse_args()
