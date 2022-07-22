@@ -32,6 +32,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', nargs='?')
     parser.add_argument('-f', '--filter', help='Row filter expression')
+    parser.add_argument('-o', '--output', help='Output file')
 
     args = parser.parse_args()
     return args
@@ -39,11 +40,23 @@ def parse_args():
 def main():
     args = parse_args()
 
-    if args.filename is None:
-        filter_file(args, sys.stdin, sys.stdout)
-    else:
-        with open(args.filename, 'r') as inFile:
-            filter_file(args, inFile, sys.stdout)
+    try:
+        if args.filename is None:
+            inFile = sys.stdin
+        else:
+            inFile = open(args.filename, 'r')
+        if args.output is None:
+            outFile = sys.stdout
+        else:
+            outFile = open(args.output, 'w')
+
+        filter_file(args, inFile, outFile)
+
+    finally:
+        if inFile != sys.stdin:
+            inFile.close()
+        if outFile != sys.stdout:
+            outFile.close()
 
 if __name__ == '__main__':
     main()
