@@ -4,14 +4,19 @@ import argparse
 import sys
 
 class Row:
-    def __init__(self, values):
+    def __init__(self, header_indexes, values):
+        self._header_indexes = header_indexes
         self._values = values
 
     def __len__(self):
         return len(self._values)
 
     def __getitem__(self, key):
-        return self._values[key]
+        if type(key) == int:
+            idx = key
+        else:
+            idx = self._header_indexes[key]
+        return self._values[idx]
 
 def filter_file(args, inFile, outFile):
     if args.filter is None:
@@ -19,12 +24,20 @@ def filter_file(args, inFile, outFile):
     else:
         filter_row = lambda l, r: eval(args.filter)
 
+    split_str = ','
+
     header = inFile.readline()
     outFile.write(header)
+    header_split = header.rstrip('\r\n').split(split_str)
+    header_indexes = {}
+    idx = 0
+    for col in header_split:
+        header_indexes[col] = idx
+        idx += 1
 
     for line in inFile:
-        split = line.rstrip('\r\n').split(',')
-        row = Row(split)
+        split = line.rstrip('\r\n').split(split_str)
+        row = Row(header_indexes, split)
         if filter_row(line, row):
             outFile.write(line)
 
