@@ -18,13 +18,27 @@ class Row:
             idx = self._header_indexes[key]
         return self._values[idx]
 
+def get_split_str(args):
+    if args.split is not None:
+        return args.split
+
+    if args.filename is not None:
+        if args.filename.endswith('.csv'):
+            return ','
+        elif args.filename.endswith('.psv'):
+            return '|'
+        elif args.filename.endswith('.tsv'):
+            return '\t'
+
+    return ','
+
 def filter_file(args, inFile, outFile):
     if args.filter is None:
         filter_row = lambda l, r: True
     else:
         filter_row = lambda l, r: eval(args.filter)
 
-    split_str = ','
+    split_str = get_split_str(args)
 
     header_indexes = {}
     if not args.no_header:
@@ -48,6 +62,7 @@ def parse_args():
     parser.add_argument('-f', '--filter', help='Row filter expression')
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
     parser.add_argument('-o', '--output', help='Output file')
+    parser.add_argument('--split', help='String to split columns')
 
     args = parser.parse_args()
     return args
