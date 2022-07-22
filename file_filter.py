@@ -44,7 +44,7 @@ def filter_file(args, inFile, outFile):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename', nargs='?')
+    parser.add_argument('filename', nargs='?', help='Input file')
     parser.add_argument('-f', '--filter', help='Row filter expression')
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
     parser.add_argument('-o', '--output', help='Output file')
@@ -56,7 +56,7 @@ def main():
     args = parse_args()
 
     try:
-        if args.filename is None:
+        if args.filename is None or args.filename == '-':
             inFile = sys.stdin
         else:
             inFile = open(args.filename, 'r')
