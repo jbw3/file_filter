@@ -5,9 +5,9 @@ import sys
 
 def filter_file(args, inFile, outFile):
     if args.filter is None:
-        filter_row = lambda r: True
+        filter_row = lambda l: True
     else:
-        filter_row = lambda r: eval(args.filter)
+        filter_row = lambda l: eval(args.filter)
 
     for line in inFile:
         if filter_row(line):
