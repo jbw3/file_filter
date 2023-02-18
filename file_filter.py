@@ -2,23 +2,26 @@
 
 import argparse
 import sys
+from typing import Callable, IO
 
 class Row:
-    def __init__(self, header_indexes, values):
+    def __init__(self, header_indexes: dict[str, int], values: list[str]) -> None:
         self._header_indexes = header_indexes
         self._values = values
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._values)
 
-    def __getitem__(self, key):
-        if type(key) == int:
+    def __getitem__(self, key: int|str) -> str:
+        if type(key) is int:
             idx = key
-        else:
+        elif type(key) is str:
             idx = self._header_indexes[key]
+        else:
+            raise TypeError('Invalid index type')
         return self._values[idx]
 
-def get_split_str(args):
+def get_split_str(args: argparse.Namespace) -> str:
     if args.split is not None:
         return args.split
 
@@ -32,16 +35,19 @@ def get_split_str(args):
 
     return ','
 
-def filter_file(args, inFile, outFile):
+def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> None:
+    filter_row: Callable[[str, Row], bool] | None
     if args.filter is None:
         filter_row = None
     else:
-        filter_row = lambda l, r: eval(args.filter)
+        def filter_row_func(l: str, r: Row) -> bool:
+            return eval(args.filter)
+        filter_row = filter_row_func
 
     split_str = get_split_str(args)
 
     # parse header
-    header_indexes = {}
+    header_indexes: dict[str, int] = {}
     if not args.no_header:
         header = inFile.readline()
         outFile.write(header)
@@ -74,7 +80,7 @@ def filter_file(args, inFile, outFile):
             outFile.write(line)
             count += 1
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', nargs='?', help='Input file')
     parser.add_argument('-f', '--filter', help='Row filter expression')
@@ -90,6 +96,8 @@ def parse_args():
 def main():
     args = parse_args()
 
+    inFile: IO[str]|None = None
+    outFile: IO[str]|None = None
     try:
         if args.filename is None or args.filename == '-':
             inFile = sys.stdin
@@ -103,9 +111,9 @@ def main():
         filter_file(args, inFile, outFile)
 
     finally:
-        if inFile != sys.stdin:
+        if inFile is not None and inFile != sys.stdin:
             inFile.close()
-        if outFile != sys.stdout:
+        if outFile is not None and outFile != sys.stdout:
             outFile.close()
 
 if __name__ == '__main__':
