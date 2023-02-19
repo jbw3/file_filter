@@ -13,11 +13,13 @@ class Row:
     def __len__(self) -> int:
         return len(self._values)
 
-    def __getitem__(self, key: int|str) -> str:
+    def __getitem__(self, key: int|str|slice) -> str|list[str]:
         if type(key) is int:
             idx = key
         elif type(key) is str:
             idx = self._header_indexes[key]
+        elif type(key) is slice:
+            idx = key
         else:
             raise TypeError('Invalid index type')
         return self._values[idx]
