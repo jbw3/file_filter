@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 
 import argparse
+from collections.abc import Iterable
 import sys
-from typing import Callable, IO
+from typing import Any, Callable, IO
 
 class Row:
     def __init__(self, header_indexes: dict[str, int], values: list[str]) -> None:
@@ -44,6 +45,14 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
             return eval(args.filter)
         filter_row = filter_row_func
 
+    map_row: Callable[[str, Row], Any] | None
+    if args.map is None:
+        map_row = None
+    else:
+        def map_row_func(l: str, r: Row) -> Any:
+            return eval(args.map)
+        map_row = map_row_func
+
     split_str = get_split_str(args)
 
     # parse header
@@ -70,14 +79,31 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
         if args.limit is not None and count >= args.limit:
             break
 
-        write_row = True
-        if filter_row is not None:
+        if filter_row is not None or map_row is not None:
             split = line.rstrip('\r\n').split(split_str)
             row = Row(header_indexes, split)
+        else:
+            row = None
+
+        write_row = True
+        if filter_row is not None:
+            assert row is not None
             write_row = filter_row(line, row)
 
         if write_row:
-            outFile.write(line)
+            if map_row is not None:
+                assert row is not None
+                map_out = map_row(line, row)
+                if type(map_out) is not str and isinstance(map_out, Iterable):
+                    new_line = split_str.join((str(i) for i in map_out))
+                else:
+                    new_line = str(map_out)
+                if not new_line.endswith('\n'):
+                    new_line += '\n'
+            else:
+                new_line = line
+
+            outFile.write(new_line)
             count += 1
 
 def parse_args() -> argparse.Namespace:
@@ -85,6 +111,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('filename', nargs='?', help='Input file')
     parser.add_argument('-f', '--filter', help='Row filter expression')
     parser.add_argument('-l', '--limit', type=int, help='Max number of rows to output (excluding header)')
+    parser.add_argument('-m', '--map', help='Row mapping expression')
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
     parser.add_argument('-o', '--offset', type=int, help='Starting row to output (excluding header)')
     parser.add_argument('--out', help='Output file')
