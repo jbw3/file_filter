@@ -24,6 +24,9 @@ class Row:
             raise TypeError('Invalid index type')
         return self._values[idx]
 
+    def __iter__(self) -> Iterable[str]:
+        return iter(self._values)
+
 def get_split_str(args: argparse.Namespace) -> str:
     if args.split is not None:
         return args.split
