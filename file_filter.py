@@ -91,6 +91,13 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
             outFile.write(new_line)
             count += 1
 
+def write_lines_limit(inFile: IO[str], outFile: IO[str], limit: int) -> None:
+    for line in inFile:
+        if limit <= 0:
+            break
+        outFile.write(line)
+        limit -= 1
+
 def write_all(inFile: IO[str], outFile: IO[str]) -> None:
     data = inFile.read(4096)
     while data != '':
@@ -119,8 +126,10 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
             count += 1
 
     # write lines
-    if args.filter is not None or args.map is not None or args.limit is not None:
+    if args.filter is not None or args.map is not None:
         write_lines_all_options(args, inFile, outFile, split_str, header_indexes)
+    elif args.limit is not None:
+        write_lines_limit(inFile, outFile, args.limit)
     else:
         write_all(inFile, outFile)
 
