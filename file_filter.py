@@ -41,7 +41,7 @@ def get_split_str(args: argparse.Namespace) -> str:
 
     return ','
 
-def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> None:
+def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], split_str: str, header_indexes: dict[str, int]) -> None:
     filter_row: Callable[[str, Row], bool] | None
     if args.filter is None:
         filter_row = None
@@ -57,26 +57,6 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
         def map_row_func(l: str, r: Row) -> Any:
             return eval(args.map)
         map_row = map_row_func
-
-    split_str = get_split_str(args)
-
-    # parse header
-    header_indexes: dict[str, int] = {}
-    if not args.no_header:
-        header = inFile.readline()
-        outFile.write(header)
-        header_split = header.rstrip('\r\n').split(split_str)
-        idx = 0
-        for col in header_split:
-            header_indexes[col] = idx
-            idx += 1
-
-    # skip lines
-    if args.offset is not None:
-        count = 1
-        while count < args.offset:
-            inFile.readline()
-            count += 1
 
     # write lines
     count = 0
@@ -110,6 +90,39 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
 
             outFile.write(new_line)
             count += 1
+
+def write_all(inFile: IO[str], outFile: IO[str]) -> None:
+    data = inFile.read(4096)
+    while data != '':
+        outFile.write(data)
+        data = inFile.read(4096)
+
+def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> None:
+    split_str = get_split_str(args)
+
+    # parse header
+    header_indexes: dict[str, int] = {}
+    if not args.no_header:
+        header = inFile.readline()
+        outFile.write(header)
+        header_split = header.rstrip('\r\n').split(split_str)
+        idx = 0
+        for col in header_split:
+            header_indexes[col] = idx
+            idx += 1
+
+    # skip lines
+    if args.offset is not None:
+        count = 1
+        while count < args.offset:
+            inFile.readline()
+            count += 1
+
+    # write lines
+    if args.filter is not None or args.map is not None or args.limit is not None:
+        write_lines_all_options(args, inFile, outFile, split_str, header_indexes)
+    else:
+        write_all(inFile, outFile)
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
