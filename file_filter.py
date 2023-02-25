@@ -46,16 +46,18 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
     if args.filter is None:
         filter_row = None
     else:
+        co = compile(args.filter, '<string>', 'eval')
         def filter_row_func(l: str, r: Row) -> bool:
-            return eval(args.filter)
+            return eval(co, {}, {'l': l, 'r': r})
         filter_row = filter_row_func
 
     map_row: Callable[[str, Row], Any] | None
     if args.map is None:
         map_row = None
     else:
+        co = compile(args.map, '<string>', 'eval')
         def map_row_func(l: str, r: Row) -> Any:
-            return eval(args.map)
+            return eval(co, {}, {'l': l, 'r': r})
         map_row = map_row_func
 
     # write lines
