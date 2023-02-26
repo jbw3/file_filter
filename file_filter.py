@@ -27,6 +27,21 @@ class Row:
     def __iter__(self) -> Iterable[str]:
         return iter(self._values)
 
+    def replace(self, key: int|str, value: Any) -> 'Row':
+        if type(key) is int:
+            idx = key
+        elif type(key) is str:
+            idx = self._header_indexes[key]
+        else:
+            raise TypeError('Invalid index type')
+        self._values[idx] = value
+        return self
+
+    def replace_if(self, condition: bool, key: int|str, value: Any) -> 'Row':
+        if condition:
+            self.replace(key, value)
+        return self
+
 def get_split_str(args: argparse.Namespace) -> str:
     if args.split is not None:
         return args.split
