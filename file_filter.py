@@ -31,6 +31,25 @@ class Row:
         self._values.extend(args)
         return self
 
+    def remove(self, *keys: int|str) -> 'Row':
+        indexes: list[int] = []
+        for key in keys:
+            if type(key) is int:
+                idx = key
+            elif type(key) is str:
+                idx = self._header_indexes[key]
+            else:
+                raise TypeError('Invalid index type')
+            indexes.append(idx)
+
+        # remove items from greatest to least index to prevent the indexes
+        # from getting off as items are removed
+        indexes.sort(reverse=True)
+        for i in indexes:
+            self._values.pop(i)
+
+        return self
+
     def replace(self, key: int|str, value: Any) -> 'Row':
         if type(key) is int:
             idx = key
@@ -144,10 +163,6 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
             header_out = eval(args.header_map, {}, {'l': header, 'r': row})
             new_header = to_line(header_out, split_str)
             outFile.write(new_header)
-
-            # update header indexes since the header may have changed
-            header_split = new_header.rstrip('\r\n').split(split_str)
-            header_indexes = {c: i for i, c in enumerate(header_split)}
         else:
             outFile.write(header)
 
