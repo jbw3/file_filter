@@ -56,6 +56,15 @@ def get_split_str(args: argparse.Namespace) -> str:
 
     return ','
 
+def to_line(object: Any, delimiter: str) -> str:
+    if type(object) is not str and isinstance(object, Iterable):
+        line = delimiter.join((str(i) for i in object))
+    else:
+        line = str(object)
+    if not line.endswith('\n'):
+        line += '\n'
+    return line
+
 def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], split_str: str, header_indexes: dict[str, int]) -> None:
     filter_row: Callable[[str, Row], bool] | None
     if args.filter is None:
@@ -96,12 +105,7 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
             if map_row is not None:
                 assert row is not None
                 map_out = map_row(line, row)
-                if type(map_out) is not str and isinstance(map_out, Iterable):
-                    new_line = split_str.join((str(i) for i in map_out))
-                else:
-                    new_line = str(map_out)
-                if not new_line.endswith('\n'):
-                    new_line += '\n'
+                new_line = to_line(map_out, split_str)
             else:
                 new_line = line
 
@@ -128,12 +132,19 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
     header_indexes: dict[str, int] = {}
     if not args.no_header:
         header = inFile.readline()
-        outFile.write(header)
         header_split = header.rstrip('\r\n').split(split_str)
         idx = 0
         for col in header_split:
             header_indexes[col] = idx
             idx += 1
+
+        if args.header_map is not None:
+            row = Row(header_indexes, header_split)
+            header_out = eval(args.header_map, {}, {'l': header, 'r': row})
+            new_header = to_line(header_out, split_str)
+            outFile.write(new_header)
+        else:
+            outFile.write(header)
 
     # skip lines
     if args.offset is not None:
@@ -154,6 +165,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', nargs='?', help='Input file')
     parser.add_argument('-f', '--filter', help='Row filter expression')
+    parser.add_argument('-H', '--header-map', help='Header row mapping expression')
     parser.add_argument('-l', '--limit', type=int, help='Max number of rows to output (excluding header)')
     parser.add_argument('-m', '--map', help='Row mapping expression')
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
