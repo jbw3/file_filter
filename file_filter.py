@@ -27,6 +27,10 @@ class Row:
     def __iter__(self) -> Iterable[str]:
         return iter(self._values)
 
+    def append(self, *args: Any) -> 'Row':
+        self._values.extend(args)
+        return self
+
     def replace(self, key: int|str, value: Any) -> 'Row':
         if type(key) is int:
             idx = key
@@ -133,16 +137,17 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
     if not args.no_header:
         header = inFile.readline()
         header_split = header.rstrip('\r\n').split(split_str)
-        idx = 0
-        for col in header_split:
-            header_indexes[col] = idx
-            idx += 1
+        header_indexes = {c: i for i, c in enumerate(header_split)}
 
         if args.header_map is not None:
             row = Row(header_indexes, header_split)
             header_out = eval(args.header_map, {}, {'l': header, 'r': row})
             new_header = to_line(header_out, split_str)
             outFile.write(new_header)
+
+            # update header indexes since the header may have changed
+            header_split = new_header.rstrip('\r\n').split(split_str)
+            header_indexes = {c: i for i, c in enumerate(header_split)}
         else:
             outFile.write(header)
 
