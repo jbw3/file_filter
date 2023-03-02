@@ -69,9 +69,9 @@ class Row:
             self.replace(key, value)
         return self
 
-def get_split_str(args: argparse.Namespace) -> str:
-    if args.split is not None:
-        return args.split
+def get_delimiter(args: argparse.Namespace) -> str:
+    if args.delimiter is not None:
+        return args.delimiter
 
     if args.filename is not None:
         if args.filename.endswith('.csv'):
@@ -92,7 +92,7 @@ def to_line(object: Any, delimiter: str) -> str:
         line += '\n'
     return line
 
-def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], split_str: str, header_indexes: dict[str, int]) -> None:
+def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], delim: str, header_indexes: dict[str, int]) -> None:
     filter_row: Callable[[str, Row], bool] | None
     if args.filter is None:
         filter_row = None
@@ -118,7 +118,7 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
             break
 
         if filter_row is not None or map_row is not None:
-            split = line.rstrip('\r\n').split(split_str)
+            split = line.rstrip('\r\n').split(delim)
             row = Row(header_indexes, split)
         else:
             row = None
@@ -132,7 +132,7 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
             if map_row is not None:
                 assert row is not None
                 map_out = map_row(line, row)
-                new_line = to_line(map_out, split_str)
+                new_line = to_line(map_out, delim)
             else:
                 new_line = line
 
@@ -153,19 +153,19 @@ def write_all(inFile: IO[str], outFile: IO[str]) -> None:
         data = inFile.read(4096)
 
 def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> None:
-    split_str = get_split_str(args)
+    delim = get_delimiter(args)
 
     # parse header
     header_indexes: dict[str, int] = {}
     if not args.no_header:
         header = inFile.readline()
-        header_split = header.rstrip('\r\n').split(split_str)
+        header_split = header.rstrip('\r\n').split(delim)
         header_indexes = {c: i for i, c in enumerate(header_split)}
 
         if args.header_map is not None:
             row = Row(header_indexes, header_split)
             header_out = eval(args.header_map, {}, {'l': header, 'r': row})
-            new_header = to_line(header_out, split_str)
+            new_header = to_line(header_out, delim)
             outFile.write(new_header)
         else:
             outFile.write(header)
@@ -179,7 +179,7 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
 
     # write lines
     if args.filter is not None or args.map is not None:
-        write_lines_all_options(args, inFile, outFile, split_str, header_indexes)
+        write_lines_all_options(args, inFile, outFile, delim, header_indexes)
     elif args.limit is not None:
         write_lines_limit(inFile, outFile, args.limit)
     else:
@@ -188,6 +188,7 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', nargs='?', help='Input file')
+    parser.add_argument('-d', '--delimiter', help='Column delimiter')
     parser.add_argument('-f', '--filter', help='Row filter expression')
     parser.add_argument('-H', '--header-map', help='Header row mapping expression')
     parser.add_argument('-l', '--limit', type=int, help='Max number of rows to output (excluding header)')
@@ -195,7 +196,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
     parser.add_argument('-o', '--offset', type=int, help='Starting row to output (excluding header)')
     parser.add_argument('--out', help='Output file')
-    parser.add_argument('--split', help='String to split columns')
 
     args = parser.parse_args()
     return args
