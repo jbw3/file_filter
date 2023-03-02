@@ -27,6 +27,15 @@ class Row:
     def __iter__(self) -> Iterable[str]:
         return iter(self._values)
 
+    def get_index(self, key: int|str) -> int:
+        if type(key) is int:
+            idx = key
+        elif type(key) is str:
+            idx = self._header_indexes[key]
+        else:
+            raise TypeError('Invalid index type')
+        return idx
+
     def append(self, *args: Any) -> 'Row':
         self._values.extend(args)
         return self
@@ -34,12 +43,7 @@ class Row:
     def remove(self, *keys: int|str) -> 'Row':
         indexes: list[int] = []
         for key in keys:
-            if type(key) is int:
-                idx = key
-            elif type(key) is str:
-                idx = self._header_indexes[key]
-            else:
-                raise TypeError('Invalid index type')
+            idx = self.get_index(key)
             indexes.append(idx)
 
         # remove items from greatest to least index to prevent the indexes
@@ -50,13 +54,13 @@ class Row:
 
         return self
 
+    def insert(self, key: int|str, value: Any) -> 'Row':
+        idx = self.get_index(key)
+        self._values.insert(idx, value)
+        return self
+
     def replace(self, key: int|str, value: Any) -> 'Row':
-        if type(key) is int:
-            idx = key
-        elif type(key) is str:
-            idx = self._header_indexes[key]
-        else:
-            raise TypeError('Invalid index type')
+        idx = self.get_index(key)
         self._values[idx] = value
         return self
 
