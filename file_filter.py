@@ -83,6 +83,33 @@ def get_delimiter(args: argparse.Namespace) -> str:
 
     return ','
 
+def split_line(line: str, delimiter: str, qualifier: str) -> list[str]:
+    line = line.rstrip('\r\n')
+
+    items: list[str] = []
+    start = 0
+    line_end = len(line)
+    q_len = len(qualifier)
+    qual_del = qualifier + delimiter
+    qual_del_len = len(qual_del)
+    while start < line_end:
+        if line[start:start+q_len] == qualifier:
+            start += 1
+            end = line.find(qualifier, start + 1)
+            while end < line_end - 1 and line[end + 1] != delimiter:
+                end = line.find(qualifier, end + 1)
+            inc = qual_del_len
+        else:
+            end = line.find(delimiter, start + 1)
+            inc = len(delimiter)
+        if end < 0:
+            end = line_end
+
+        items.append(line[start:end])
+        start = end + inc
+
+    return items
+
 def to_line(object: Any, delimiter: str) -> str:
     if type(object) is not str and isinstance(object, Iterable):
         line = delimiter.join((str(i) for i in object))
