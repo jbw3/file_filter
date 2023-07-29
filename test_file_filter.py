@@ -5,7 +5,7 @@ import unittest
 
 class FileFilterTest(unittest.TestCase):
     def test_split(self):
-        tests = [
+        tests: list[tuple[str, list[str]]] = [
             ('1,2,3\n', ['1', '2', '3']),
             ('"1","2","3"\n', ['1', '2', '3']),
             ('"1",2,"3"\n', ['1', '2', '3']),
@@ -13,9 +13,9 @@ class FileFilterTest(unittest.TestCase):
             ('"1,2",3,4\n', ['1,2', '3', '4']),
             ('"1"2,","3"\n', ['1"2,', '3']),
         ]
-        for test in tests:
-            l = file_filter.split_line(test[0], ',', '"')
-            self.assertEqual(l, test[1])
+        for test_str, expected in tests:
+            l = file_filter.split_line(test_str, ',', '"')
+            self.assertEqual(expected, l)
 
 if __name__ == '__main__':
     unittest.main()
