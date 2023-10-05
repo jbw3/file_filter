@@ -6,9 +6,10 @@ import sys
 from typing import Any, Callable, IO
 
 class Row:
-    def __init__(self, header_indexes: dict[str, int], values: list[str]) -> None:
+    def __init__(self, header_indexes: dict[str, int], values: list[str], qualified: list[bool]|None) -> None:
         self._header_indexes = header_indexes
         self._values = values
+        self._qualified = qualified
 
     def __len__(self) -> int:
         return len(self._values)
@@ -26,6 +27,22 @@ class Row:
 
     def __iter__(self) -> Iterable[str]:
         return iter(self._values)
+
+    def to_line_str(self, delimiter: str, qualifier: str|None) -> str:
+        if qualifier is None or self._qualified is None:
+            line = delimiter.join(self._values)
+        else:
+            # TODO: make this more efficient
+            str_values: list[str] = []
+            for i, v in enumerate(self._values):
+                if self._qualified[i]:
+                    str_values.append(qualifier + v + qualifier)
+                else:
+                    str_values.append(v)
+
+            line = delimiter.join(str_values)
+
+        return line
 
     def get_index(self, key: int|str) -> int:
         if type(key) is int:
@@ -83,9 +100,7 @@ def get_delimiter(args: argparse.Namespace) -> str:
 
     return ','
 
-def split_line(line: str, delimiter: str, qualifier: str) -> tuple[list[str], list[bool]]:
-    line = line.rstrip('\r\n')
-
+def split_line_qualifier(line: str, delimiter: str, qualifier: str) -> tuple[list[str], list[bool]]:
     items: list[str] = []
     qualified: list[bool] = []
     start = 0
@@ -114,8 +129,20 @@ def split_line(line: str, delimiter: str, qualifier: str) -> tuple[list[str], li
 
     return items, qualified
 
-def to_line(object: Any, delimiter: str) -> str:
-    if type(object) is not str and isinstance(object, Iterable):
+def split_line(line: str, delimiter: str, qualifier: str|None) -> tuple[list[str], list[bool]|None]:
+    line = line.rstrip('\r\n')
+    if qualifier is None:
+        values = line.split(delimiter)
+        qualified = None
+    else:
+        values, qualified = split_line_qualifier(line, delimiter, qualifier)
+
+    return values, qualified
+
+def to_line(object: Any, delimiter: str, qualifier: str|None) -> str:
+    if type(object) is Row:
+        line = object.to_line_str(delimiter, qualifier)
+    elif type(object) is not str and isinstance(object, Iterable):
         line = delimiter.join((str(i) for i in object))
     else:
         line = str(object)
@@ -123,7 +150,7 @@ def to_line(object: Any, delimiter: str) -> str:
         line += '\n'
     return line
 
-def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], delim: str, header_indexes: dict[str, int]) -> None:
+def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], delim: str, qual: str|None, header_indexes: dict[str, int]) -> None:
     filter_row: Callable[[str, Row], bool] | None
     if args.filter is None:
         filter_row = None
@@ -149,8 +176,8 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
             break
 
         if filter_row is not None or map_row is not None:
-            split = line.rstrip('\r\n').split(delim)
-            row = Row(header_indexes, split)
+            values, qualified = split_line(line, delim, qual)
+            row = Row(header_indexes, values, qualified)
         else:
             row = None
 
@@ -163,7 +190,7 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
             if map_row is not None:
                 assert row is not None
                 map_out = map_row(line, row)
-                new_line = to_line(map_out, delim)
+                new_line = to_line(map_out, delim, qual)
             else:
                 new_line = line
 
@@ -185,18 +212,19 @@ def write_all(inFile: IO[str], outFile: IO[str]) -> None:
 
 def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> None:
     delim = get_delimiter(args)
+    qual: str|None = args.qualifier
 
     # parse header
     header_indexes: dict[str, int] = {}
     if not args.no_header:
         header = inFile.readline()
-        header_split = header.rstrip('\r\n').split(delim)
-        header_indexes = {c: i for i, c in enumerate(header_split)}
+        header_values, header_qualified = split_line(header, delim, qual)
+        header_indexes = {c: i for i, c in enumerate(header_values)}
 
         if args.header_map is not None:
-            row = Row(header_indexes, header_split)
+            row = Row(header_indexes, header_values, header_qualified)
             header_out = eval(args.header_map, {}, {'l': header, 'r': row})
-            new_header = to_line(header_out, delim)
+            new_header = to_line(header_out, delim, qual)
             outFile.write(new_header)
         else:
             outFile.write(header)
@@ -210,7 +238,7 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
 
     # write lines
     if args.filter is not None or args.map is not None:
-        write_lines_all_options(args, inFile, outFile, delim, header_indexes)
+        write_lines_all_options(args, inFile, outFile, delim, qual, header_indexes)
     elif args.limit is not None:
         write_lines_limit(inFile, outFile, args.limit)
     else:
@@ -227,6 +255,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--no-header', action='store_true', help='Do not treat first row as header')
     parser.add_argument('-o', '--offset', type=int, help='Starting row to output (excluding header)')
     parser.add_argument('--out', help='Output file')
+    parser.add_argument('-q', '--qualifier', help='column qualifier')
 
     args = parser.parse_args()
     return args
