@@ -5,9 +5,15 @@ from collections.abc import Iterable
 import sys
 from typing import Any, Callable, IO
 
+class Schema:
+    def __init__(self, delimiter: str, qualifier: str|None):
+        self.header_indexes: dict[str, int] = {}
+        self.delimiter = delimiter
+        self.qualifier = qualifier
+
 class Row:
-    def __init__(self, header_indexes: dict[str, int], values: list[str], qualified: list[bool]|None) -> None:
-        self._header_indexes = header_indexes
+    def __init__(self, schema: Schema, values: list[str], qualified: list[bool]|None) -> None:
+        self._schema = schema
         self._values = values
         self._qualified = qualified
 
@@ -18,7 +24,7 @@ class Row:
         if type(key) is int:
             idx = key
         elif type(key) is str:
-            idx = self._header_indexes[key]
+            idx = self._schema.header_indexes[key]
         elif type(key) is slice:
             idx = key
         else:
@@ -48,7 +54,7 @@ class Row:
         if type(key) is int:
             idx = key
         elif type(key) is str:
-            idx = self._header_indexes[key]
+            idx = self._schema.header_indexes[key]
         else:
             raise TypeError('Invalid index type')
         return idx
@@ -150,7 +156,7 @@ def to_line(object: Any, delimiter: str, qualifier: str|None) -> str:
         line += '\n'
     return line
 
-def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], delim: str, qual: str|None, header_indexes: dict[str, int]) -> None:
+def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: IO[str], delim: str, qual: str|None, schema: Schema) -> None:
     filter_row: Callable[[str, Row], bool] | None
     if args.filter is None:
         filter_row = None
@@ -177,7 +183,7 @@ def write_lines_all_options(args: argparse.Namespace, inFile: IO[str], outFile: 
 
         if filter_row is not None or map_row is not None:
             values, qualified = split_line(line, delim, qual)
-            row = Row(header_indexes, values, qualified)
+            row = Row(schema, values, qualified)
         else:
             row = None
 
@@ -215,14 +221,14 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
     qual: str|None = args.qualifier
 
     # parse header
-    header_indexes: dict[str, int] = {}
+    schema = Schema(delim, qual)
     if not args.no_header:
         header = inFile.readline()
         header_values, header_qualified = split_line(header, delim, qual)
-        header_indexes = {c: i for i, c in enumerate(header_values)}
+        schema.header_indexes = {c: i for i, c in enumerate(header_values)}
 
         if args.header_map is not None:
-            row = Row(header_indexes, header_values, header_qualified)
+            row = Row(schema, header_values, header_qualified)
             header_out = eval(args.header_map, {}, {'l': header, 'r': row})
             new_header = to_line(header_out, delim, qual)
             outFile.write(new_header)
@@ -238,7 +244,7 @@ def filter_file(args: argparse.Namespace, inFile: IO[str], outFile: IO[str]) -> 
 
     # write lines
     if args.filter is not None or args.map is not None:
-        write_lines_all_options(args, inFile, outFile, delim, qual, header_indexes)
+        write_lines_all_options(args, inFile, outFile, delim, qual, schema)
     elif args.limit is not None:
         write_lines_limit(inFile, outFile, args.limit)
     else:
