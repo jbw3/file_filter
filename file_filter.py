@@ -61,6 +61,11 @@ class Row:
 
     def append(self, *args: Any) -> 'Row':
         self._values.extend(args)
+        if self._qualified is not None and self._schema.qualifier is not None:
+            for arg in args:
+                needs_qual = self._schema.delimiter in str(arg)
+                self._qualified.append(needs_qual)
+
         return self
 
     def remove(self, *keys: int|str) -> 'Row':
@@ -74,17 +79,26 @@ class Row:
         indexes.sort(reverse=True)
         for i in indexes:
             self._values.pop(i)
+            if self._qualified is not None and self._schema.qualifier is not None:
+                self._qualified.pop(i)
 
         return self
 
     def insert(self, key: int|str, value: Any) -> 'Row':
         idx = self.get_index(key)
         self._values.insert(idx, value)
+        if self._qualified is not None and self._schema.qualifier is not None:
+            needs_qual = self._schema.delimiter in str(value)
+            self._qualified.insert(idx, needs_qual)
         return self
 
     def replace(self, key: int|str, value: Any) -> 'Row':
         idx = self.get_index(key)
         self._values[idx] = value
+        if self._qualified is not None and self._schema.qualifier is not None:
+            needs_qual = self._schema.delimiter in str(value)
+            self._qualified.insert(idx, needs_qual)
+
         return self
 
     def replace_if(self, condition: bool, key: int|str, value: Any) -> 'Row':
