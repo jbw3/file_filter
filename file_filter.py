@@ -60,10 +60,11 @@ class Row:
         return idx
 
     def append(self, *args: Any) -> 'Row':
-        self._values.extend(args)
+        str_args = [str(arg) for arg in args]
+        self._values.extend(str_args)
         if self._qualified is not None and self._schema.qualifier is not None:
-            for arg in args:
-                needs_qual = self._schema.delimiter in str(arg)
+            for arg in str_args:
+                needs_qual = self._schema.delimiter in arg
                 self._qualified.append(needs_qual)
 
         return self
@@ -86,17 +87,19 @@ class Row:
 
     def insert(self, key: int|str, value: Any) -> 'Row':
         idx = self.get_index(key)
-        self._values.insert(idx, value)
+        str_value = str(value)
+        self._values.insert(idx, str_value)
         if self._qualified is not None and self._schema.qualifier is not None:
-            needs_qual = self._schema.delimiter in str(value)
+            needs_qual = self._schema.delimiter in str_value
             self._qualified.insert(idx, needs_qual)
         return self
 
     def replace(self, key: int|str, value: Any) -> 'Row':
         idx = self.get_index(key)
-        self._values[idx] = value
+        str_value = str(value)
+        self._values[idx] = str_value
         if self._qualified is not None and self._schema.qualifier is not None:
-            needs_qual = self._schema.delimiter in str(value)
+            needs_qual = self._schema.delimiter in str_value
             self._qualified.insert(idx, needs_qual)
 
         return self
