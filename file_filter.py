@@ -6,7 +6,7 @@ import sys
 from typing import Any, Callable, IO
 
 class Schema:
-    def __init__(self, delimiter: str, qualifier: str|None):
+    def __init__(self, delimiter: str, qualifier: str|None) -> None:
         self.header_indexes: dict[str, int] = {}
         self.delimiter = delimiter
         self.qualifier = qualifier
